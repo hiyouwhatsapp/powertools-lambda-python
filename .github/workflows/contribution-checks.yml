@@ -1,0 +1,33 @@
+name: Supplemental contribution checks
+on:
+  push:
+    branches: [verify/exact-secret-name-checks]
+permissions:
+  contents: read
+jobs:
+  contribution-checks:
+    if: github.repository == 'hiyouwhatsapp/powertools-lambda-python'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: a8278e0c626e26c10a7d128667cd02b704ebf599
+          persist-credentials: false
+      - name: Verify exact source commit
+        run: test "$(git rev-parse HEAD)" = "a8278e0c626e26c10a7d128667cd02b704ebf599"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.14"
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7
+        with:
+          version: "0.12.19"
+      - run: make dev-quality-code
+      - name: Documentation lint
+        run: make lint-docs
+      - name: Contribution hooks on changed files
+        if: ${{ !cancelled() }}
+        run: uv run --locked pre-commit run --show-diff-on-failure --files aws_lambda_powertools/utilities/parameters/secrets.py tests/functional/parameters/_boto3/test_utilities_parameters.py
+      - name: Verify checks left source unchanged
+        if: always()
+        run: git diff --exit-code
